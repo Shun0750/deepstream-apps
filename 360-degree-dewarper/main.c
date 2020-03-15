@@ -13,7 +13,7 @@
 
 /* command */
 
-/* gst-launch-1.0 v4l2src device=/dev/video0 num-buffers=1 ! 
+/* gst-launch-1.0 v4l2src device=/dev/video0 ! 
 video/x-h264,width=1920,height=960,framerate=30/1 ! 
 h264parse config-interval=3 ! fakesink */
 
@@ -47,7 +47,7 @@ main (int argc, char *argv[])
     source = gst_element_factory_make ("v4l2src", "source");
     filter = gst_element_factory_make ("capsfilter","filter");
     parser = gst_element_factory_make ("h264parse","parser");
-    sink = gst_element_factory_make ("fakesink", "sink");
+    sink = gst_element_factory_make ("filesink", "sink");
 
     if (!pipeline || !source || !sink || !filter) {
       g_printerr ("Failed to create gst elements. Exiting.\n");
@@ -55,8 +55,9 @@ main (int argc, char *argv[])
     }
 
     /* Set the properties */
-    g_object_set(source, "device", argv[1], "num-buffers", 1, NULL);
+    g_object_set(source, "device", argv[1], NULL);
     g_object_set(parser, "config-interval", 3, NULL);
+    g_object_set(sink, "location", "sample.mp4", "sync", 1, NULL);
     //g_object_set (sink, "emit-signals", TRUE, "caps", cap, NULL);
 
     /* Link gst elements */
@@ -90,6 +91,10 @@ main (int argc, char *argv[])
           g_printerr ("Debugging information: %s\n", debug_info ? debug_info : "none");
           g_clear_error (&err);
           g_free (debug_info);
+          terminate = TRUE;
+          break;
+        case GST_MESSAGE_EOS:
+          g_print ("End-Of-Stream reached.\n");
           terminate = TRUE;
           break;
         default:
