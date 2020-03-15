@@ -21,12 +21,13 @@ int
 main (int argc, char *argv[])
 {
     GMainLoop *loop;
-    GstElement *pipeline, *source, *filter, *parser, *sink;
+    GstElement *pipeline, *source, *filter, *parser, *nvdewarper, *sink, *nvvideoconvert;
     GstCaps *cap;
     GstBus *bus;
     GstStateChangeReturn ret;
     GstMessage *msg;
     gboolean terminate = FALSE;
+    guint source_id = 0;
 
     /* GStreamer initialization */
     g_print ("Initializeing app...\n");
@@ -47,9 +48,11 @@ main (int argc, char *argv[])
     source = gst_element_factory_make ("v4l2src", "source");
     filter = gst_element_factory_make ("capsfilter","filter");
     parser = gst_element_factory_make ("h264parse","parser");
+    nvvideoconvert = gst_element_factory_make ("nvvideoconvert", NULL);
+    nvdewarper = gst_element_factory_make ("nvdewarper", NULL);
     sink = gst_element_factory_make ("filesink", "sink");
 
-    if (!pipeline || !source || !sink || !filter) {
+    if (!pipeline || !source || !sink || !filter || !nvvideoconvert || !nvdewarper) {
       g_printerr ("Failed to create gst elements. Exiting.\n");
       return -1;
     }
@@ -58,10 +61,16 @@ main (int argc, char *argv[])
     g_object_set(source, "device", argv[1], NULL);
     g_object_set(parser, "config-interval", 3, NULL);
     g_object_set(sink, "location", "sample.mp4", "sync", 1, NULL);
+
+    source_id = atoi(argv[2]);
+    g_object_set (G_OBJECT (nvdewarper),
+      "config-file", "./config_dewarper.txt",
+      "source-id", source_id,
+      NULL);
     //g_object_set (sink, "emit-signals", TRUE, "caps", cap, NULL);
 
     /* Link gst elements */
-    gst_bin_add_many (GST_BIN (pipeline), source, filter, parser, sink  , NULL);
+    gst_bin_add_many (GST_BIN (pipeline), source, filter, parser, sink, nvvideoconvert, nvdewarper, NULL);
     if (gst_element_link (source, sink) != TRUE) {
         g_printerr ("Elements could not be linked.");
         gst_object_unref (pipeline);
